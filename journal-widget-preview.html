@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Journal Widget Preview</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #2d4a3e 50%, #1a2a1a 100%);
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 24px;
+      font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    }
+
+    .card {
+      width: 340px;
+      max-height: calc(100vh - 88px);
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: 16px;
+      padding: 20px 22px 22px;
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+      animation: fadeIn 0.6s ease;
+    }
+
+    .card::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .card::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .card::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .card::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 12px;
+    }
+
+    .icon {
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .date {
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.35);
+      margin-left: auto;
+      letter-spacing: 0.04em;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.12);
+      margin-bottom: 14px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 18px 0;
+    }
+
+    .today-preview {
+      font-size: 14px;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.88);
+      word-break: break-word;
+      margin-bottom: 0;
+    }
+
+    .today-preview p {
+      margin: 0 0 0.75em 0;
+    }
+
+    .today-preview p:last-child {
+      margin-bottom: 0;
+    }
+
+    .today-preview.collapsed .full-text {
+      display: none;
+    }
+
+    .today-preview.expanded .selected-para {
+      display: none;
+    }
+
+    .expand-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 8px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+      display: block;
+      transition: color 0.2s ease;
+    }
+
+    .expand-btn:hover {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .grateful-text {
+      font-size: 14px;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.88);
+      word-break: break-word;
+      margin-bottom: 0;
+    }
+
+    .empty {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* ── Dev controls ── */
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .controls button {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: white;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+    }
+
+    .controls button:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    .counter {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-family: -apple-system, sans-serif;
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+
+    <div class="section-header">
+      <span class="icon">📖</span>
+      <span class="label">On this day</span>
+      <span class="date" id="today-date"></span>
+    </div>
+    <div class="divider"></div>
+    <p class="today-preview" id="today-text">Loading...</p>
+    <button class="expand-btn" id="expand-btn" onclick="toggleExpand()">Read more ↓</button>
+
+    <div class="section-divider"></div>
+
+    <div class="section-header">
+      <span class="icon">🤍</span>
+      <span class="label">Grateful for</span>
+      <span class="date" id="grateful-date"></span>
+    </div>
+    <div class="divider"></div>
+    <p class="grateful-text" id="grateful-text">Loading...</p>
+
+
+  </div>
+
+  <!-- Dev controls -->
+  <div class="controls">
+    <button onclick="prev()">← Prev entry</button>
+    <button onclick="next()">Next entry →</button>
+    <button onclick="shuffle()">🔀 Shuffle</button>
+  </div>
+
+  <div class="counter" id="counter"></div>
+
+  <script>
+    let entries = [];
+    let currentGratefulIndex = 0;
+    let currentTodayIndex = 0;
+    let isExpanded = false;
+
+    function seededRandom(seed) {
+      let x = Math.sin(seed + 1) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function seededRandom2(seed) {
+      // Offset so the two daily picks are always different
+      let x = Math.sin(seed + 99) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function getTodaysSeed() {
+      const now = new Date();
+      return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    }
+
+    function formatDate(isoDate) {
+      if (!isoDate) return '';
+      const [year, month, day] = isoDate.split('-').map(Number);
+      const d = new Date(year, month - 1, day);
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function renderParagraphs(text) {
+      // Split on one or more newlines, filter empty, wrap each in <p>
+      return (text || '')
+        .split(/\n+/)
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+        .map(p => `<p>${p}</p>`)
+        .join('');
+    }
+
+    function pickRandomParagraph(text, seed) {
+      const paras = (text || '')
+        .split(/\n+/)
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+      if (paras.length === 0) return '';
+      const idx = Math.floor(seededRandom2(seed) * paras.length);
+      return paras[idx];
+    }
+
+    function showEntries(gratefulEntry, todayEntry) {
+      document.getElementById('grateful-text').textContent = gratefulEntry.grateful || '(no grateful text)';
+      document.getElementById('grateful-date').textContent = formatDate(gratefulEntry.date);
+
+      // Reset expand state
+      isExpanded = false;
+      const todayEl = document.getElementById('today-text');
+      document.getElementById('today-date').textContent = formatDate(todayEntry.date);
+      document.getElementById('expand-btn').textContent = 'Read more ↓';
+
+      const seed = getTodaysSeed();
+      const selectedPara = pickRandomParagraph(todayEntry.today, seed);
+      const allParas = renderParagraphs(todayEntry.today);
+
+      todayEl.innerHTML = `
+        <span class="selected-para"><p>${selectedPara}</p></span>
+        <span class="full-text">${allParas}</span>
+      `;
+      todayEl.className = 'today-preview collapsed';
+    }
+
+    function toggleExpand() {
+      isExpanded = !isExpanded;
+      const todayEl = document.getElementById('today-text');
+      todayEl.className = isExpanded ? 'today-preview expanded' : 'today-preview collapsed';
+      document.getElementById('expand-btn').textContent = isExpanded ? 'Read less ↑' : 'Read more ↓';
+    }
+
+    function updateCounter() {
+      document.getElementById('counter').textContent =
+        `Grateful ${currentGratefulIndex + 1} · Archive ${currentTodayIndex + 1} of ${entries.length}`;
+    }
+
+    function next() {
+      currentGratefulIndex = (currentGratefulIndex + 1) % entries.length;
+      currentTodayIndex = (currentTodayIndex + 1) % entries.length;
+      if (currentTodayIndex === currentGratefulIndex) {
+        currentTodayIndex = (currentTodayIndex + 1) % entries.length;
+      }
+      showEntries(entries[currentGratefulIndex], entries[currentTodayIndex]);
+      updateCounter();
+    }
+
+    function prev() {
+      currentGratefulIndex = (currentGratefulIndex - 1 + entries.length) % entries.length;
+      currentTodayIndex = (currentTodayIndex - 1 + entries.length) % entries.length;
+      if (currentTodayIndex === currentGratefulIndex) {
+        currentTodayIndex = (currentTodayIndex - 1 + entries.length) % entries.length;
+      }
+      showEntries(entries[currentGratefulIndex], entries[currentTodayIndex]);
+      updateCounter();
+    }
+
+    function pickToday() {
+      const seed = getTodaysSeed();
+      pickWithSeed(seed);
+    }
+
+    function shuffle() {
+      const seed = Math.floor(Math.random() * 1000000);
+      pickWithSeed(seed);
+    }
+
+    function pickWithSeed(seed) {
+      const withGrateful = entries.filter(e => e.grateful && e.grateful.trim().length > 0);
+      const gratefulEntry = withGrateful[Math.floor(seededRandom(seed) * withGrateful.length)];
+
+      const withToday = entries.filter(e => e.today && e.today.trim().length > 0 && e.id !== gratefulEntry.id);
+      const todayEntry = withToday[Math.floor(seededRandom2(seed) * withToday.length)];
+
+      currentGratefulIndex = entries.indexOf(gratefulEntry);
+      currentTodayIndex = entries.indexOf(todayEntry);
+
+      showEntries(gratefulEntry, todayEntry);
+      updateCounter();
+    }
+
+    fetch('./journal.json')
+      .then(r => r.json())
+      .then(data => {
+        entries = data;
+        if (entries.length === 0) {
+          document.getElementById('grateful-text').textContent = 'No entries found.';
+          return;
+        }
+        pickWithSeed(getTodaysSeed());
+      })
+      .catch(() => {
+        document.getElementById('grateful-text').textContent =
+          'Could not load journal.json — make sure you are running a local server (see comments in file).';
+      });
+  </script>
+</body>
+</html>
