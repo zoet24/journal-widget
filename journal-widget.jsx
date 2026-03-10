@@ -1,8 +1,10 @@
 // Journal Widget for Übersicht
 // Place this file in ~/Library/Application Support/Übersicht/widgets/
 
-export const command = `cat /Users/zoethexton/Desktop/Zoepix/Code/journal-widget/journal.json`;
+const JOURNAL_PATH = `/Users/zoethexton/Desktop/Zoepix/Code/journal-widget/journal.json`;
+const PROMPTS_PATH = `/Users/zoethexton/Desktop/Zoepix/Code/journal-widget/prompts.json`;
 
+export const command = `echo '{"journal":' && cat ${JOURNAL_PATH} && echo ',"prompts":' && cat ${PROMPTS_PATH} && echo '}'`;
 export const refreshFrequency = 1000 * 60 * 60; // refresh every hour
 
 export const className = `
@@ -95,6 +97,14 @@ export const className = `
     margin: 18px 0;
   }
 
+  .prompt-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.88);
+    word-break: break-word;
+    margin: 0 0 0.75em 0;
+  }
+
   .today-para {
     font-size: 14px;
     line-height: 1.65;
@@ -131,9 +141,22 @@ function seededRandom2(seed) {
   return x - Math.floor(x);
 }
 
+function seededRandom3(seed) {
+  let x = Math.sin(seed + 42) * 10000;
+  return x - Math.floor(x);
+}
+
 function getTodaysSeed() {
   const now = new Date();
   return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+}
+
+function todaysDate() {
+  return new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function formatDate(isoDate) {
@@ -156,7 +179,7 @@ function pickRandomParagraph(text, seed) {
   return paras[Math.floor(seededRandom2(seed) * paras.length)];
 }
 
-function pickEntries(entries) {
+function pickAll(entries, prompts) {
   const seed = getTodaysSeed();
 
   const withGrateful = entries.filter(
@@ -171,26 +194,32 @@ function pickEntries(entries) {
   const todayEntry =
     withToday[Math.floor(seededRandom2(seed) * withToday.length)];
 
-  return { gratefulEntry, todayEntry, seed };
+  const prompt = prompts.length
+    ? prompts[Math.floor(seededRandom3(seed) * prompts.length)]
+    : "";
+
+  return { gratefulEntry, todayEntry, prompt, seed };
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 export const render = ({ output, error }) => {
   if (error) {
     return (
       <div className="card">
-        <p className="error">Could not load journal.json</p>
+        <p className="error">Could not load data files</p>
       </div>
     );
   }
 
   let entries = [];
+  let prompts = [];
   try {
-    entries = JSON.parse(output);
+    const parsed = JSON.parse(output);
+    entries = parsed.journal;
+    prompts = parsed.prompts;
   } catch (e) {
     return (
       <div className="card">
-        <p className="error">Could not parse journal.json</p>
+        <p className="error">Could not parse data files</p>
       </div>
     );
   }
@@ -203,7 +232,7 @@ export const render = ({ output, error }) => {
     );
   }
 
-  const { gratefulEntry, todayEntry, seed } = pickEntries(entries);
+  const { gratefulEntry, todayEntry, prompt, seed } = pickAll(entries, prompts);
   const selectedPara = todayEntry
     ? pickRandomParagraph(todayEntry.today, seed)
     : "";
@@ -211,7 +240,16 @@ export const render = ({ output, error }) => {
   return (
     <div className="card">
       <div className="section-header">
-        <span className="icon">📖</span>
+        <span className="icon">👋</span>
+        <span className="label">Today</span>
+        <span className="date">{todaysDate()}</span>
+      </div>
+      <div className="divider" />
+      <p className="prompt-text">{prompt || "(no prompts loaded)"}</p>
+
+      <div className="section-divider" />
+      <div className="section-header">
+        <span className="icon">🗓️</span>
         <span className="label">On this day</span>
         <span className="date">
           {todayEntry ? formatDate(todayEntry.date) : ""}
@@ -223,7 +261,7 @@ export const render = ({ output, error }) => {
       <div className="section-divider" />
 
       <div className="section-header">
-        <span className="icon">🤍</span>
+        <span className="icon">💚</span>
         <span className="label">Grateful for</span>
         <span className="date">
           {gratefulEntry ? formatDate(gratefulEntry.date) : ""}

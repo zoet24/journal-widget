@@ -94,7 +94,7 @@
       margin: 18px 0;
     }
 
-    .today-preview {
+    .prompt-preview, .today-preview {
       font-size: 14px;
       line-height: 1.65;
       color: rgba(255, 255, 255, 0.88);
@@ -188,7 +188,17 @@
   <div class="card">
 
     <div class="section-header">
-      <span class="icon">📖</span>
+      <span class="icon">👋</span>
+      <span class="label">Today</span>
+      <span class="date" id="prompt-date"></span>
+    </div>
+    <div class="divider"></div>
+    <p class="prompt-preview" id="prompt-text">Loading...</p>
+
+    <div class="section-divider"></div>
+
+    <div class="section-header">
+      <span class="icon">🗓️</span>
       <span class="label">On this day</span>
       <span class="date" id="today-date"></span>
     </div>
@@ -199,7 +209,7 @@
     <div class="section-divider"></div>
 
     <div class="section-header">
-      <span class="icon">🤍</span>
+      <span class="icon">💚</span>
       <span class="label">Grateful for</span>
       <span class="date" id="grateful-date"></span>
     </div>
@@ -220,6 +230,7 @@
 
   <script>
     let entries = [];
+    let prompts = [];
     let currentGratefulIndex = 0;
     let currentTodayIndex = 0;
     let isExpanded = false;
@@ -230,8 +241,12 @@
     }
 
     function seededRandom2(seed) {
-      // Offset so the two daily picks are always different
       let x = Math.sin(seed + 99) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function seededRandom3(seed) {
+      let x = Math.sin(seed + 42) * 10000;
       return x - Math.floor(x);
     }
 
@@ -247,8 +262,11 @@
       return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
+    function todaysDate() {
+      return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
     function renderParagraphs(text) {
-      // Split on one or more newlines, filter empty, wrap each in <p>
       return (text || '')
         .split(/\n+/)
         .map(p => p.trim())
@@ -263,15 +281,19 @@
         .map(p => p.trim())
         .filter(p => p.length > 0);
       if (paras.length === 0) return '';
-      const idx = Math.floor(seededRandom2(seed) * paras.length);
-      return paras[idx];
+      return paras[Math.floor(seededRandom2(seed) * paras.length)];
     }
 
-    function showEntries(gratefulEntry, todayEntry) {
+    function showAll(gratefulEntry, todayEntry, prompt) {
+      // Prompt section
+      document.getElementById('prompt-text').textContent = prompt;
+      document.getElementById('prompt-date').textContent = todaysDate();
+
+      // Grateful section
       document.getElementById('grateful-text').textContent = gratefulEntry.grateful || '(no grateful text)';
       document.getElementById('grateful-date').textContent = formatDate(gratefulEntry.date);
 
-      // Reset expand state
+      // Archive section — reset expand state
       isExpanded = false;
       const todayEl = document.getElementById('today-text');
       document.getElementById('today-date').textContent = formatDate(todayEntry.date);
@@ -303,31 +325,19 @@
     function next() {
       currentGratefulIndex = (currentGratefulIndex + 1) % entries.length;
       currentTodayIndex = (currentTodayIndex + 1) % entries.length;
-      if (currentTodayIndex === currentGratefulIndex) {
-        currentTodayIndex = (currentTodayIndex + 1) % entries.length;
-      }
-      showEntries(entries[currentGratefulIndex], entries[currentTodayIndex]);
+      if (currentTodayIndex === currentGratefulIndex) currentTodayIndex = (currentTodayIndex + 1) % entries.length;
+      const prompt = prompts.length ? prompts[Math.floor(seededRandom3(getTodaysSeed()) * prompts.length)] : '';
+      showAll(entries[currentGratefulIndex], entries[currentTodayIndex], prompt);
       updateCounter();
     }
 
     function prev() {
       currentGratefulIndex = (currentGratefulIndex - 1 + entries.length) % entries.length;
       currentTodayIndex = (currentTodayIndex - 1 + entries.length) % entries.length;
-      if (currentTodayIndex === currentGratefulIndex) {
-        currentTodayIndex = (currentTodayIndex - 1 + entries.length) % entries.length;
-      }
-      showEntries(entries[currentGratefulIndex], entries[currentTodayIndex]);
+      if (currentTodayIndex === currentGratefulIndex) currentTodayIndex = (currentTodayIndex - 1 + entries.length) % entries.length;
+      const prompt = prompts.length ? prompts[Math.floor(seededRandom3(getTodaysSeed()) * prompts.length)] : '';
+      showAll(entries[currentGratefulIndex], entries[currentTodayIndex], prompt);
       updateCounter();
-    }
-
-    function pickToday() {
-      const seed = getTodaysSeed();
-      pickWithSeed(seed);
-    }
-
-    function shuffle() {
-      const seed = Math.floor(Math.random() * 1000000);
-      pickWithSeed(seed);
     }
 
     function pickWithSeed(seed) {
@@ -337,27 +347,39 @@
       const withToday = entries.filter(e => e.today && e.today.trim().length > 0 && e.id !== gratefulEntry.id);
       const todayEntry = withToday[Math.floor(seededRandom2(seed) * withToday.length)];
 
+      const prompt = prompts.length
+        ? prompts[Math.floor(seededRandom3(seed) * prompts.length)]
+        : '(no prompts loaded)';
+
       currentGratefulIndex = entries.indexOf(gratefulEntry);
       currentTodayIndex = entries.indexOf(todayEntry);
 
-      showEntries(gratefulEntry, todayEntry);
+      showAll(gratefulEntry, todayEntry, prompt);
       updateCounter();
     }
 
-    fetch('./journal.json')
-      .then(r => r.json())
-      .then(data => {
-        entries = data;
-        if (entries.length === 0) {
-          document.getElementById('grateful-text').textContent = 'No entries found.';
-          return;
-        }
-        pickWithSeed(getTodaysSeed());
-      })
-      .catch(() => {
-        document.getElementById('grateful-text').textContent =
-          'Could not load journal.json — make sure you are running a local server (see comments in file).';
-      });
+    function shuffle() {
+      pickWithSeed(Math.floor(Math.random() * 1000000));
+    }
+
+    // Load both files in parallel
+    Promise.all([
+      fetch('./journal.json').then(r => r.json()),
+      fetch('./prompts.json').then(r => r.json()),
+    ])
+    .then(([journalData, promptData]) => {
+      entries = journalData;
+      prompts = promptData;
+      if (entries.length === 0) {
+        document.getElementById('grateful-text').textContent = 'No entries found.';
+        return;
+      }
+      pickWithSeed(getTodaysSeed());
+    })
+    .catch(() => {
+      document.getElementById('prompt-text').textContent =
+        'Could not load data — make sure you are running a local server.';
+    });
   </script>
 </body>
 </html>
